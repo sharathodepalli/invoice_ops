@@ -72,7 +72,7 @@ export default function PricingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,_#fffaf4_0%,_#ffffff_45%,_#f8fafc_100%)] px-6 py-12 text-zinc-950">
+    <main className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-slate-50 px-6 py-12 text-zinc-900">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -88,7 +88,7 @@ export default function PricingPage() {
             </p>
           </div>
           <Link
-            className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:border-zinc-400"
+            className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-900 transition hover:-translate-y-0.5 hover:border-zinc-400"
             href="/"
           >
             Back home
@@ -101,7 +101,9 @@ export default function PricingPage() {
               Recommended offer
             </p>
             <div className="mt-3 flex items-baseline gap-3">
-              <span className="text-5xl font-semibold">$2.5k</span>
+              <span className="text-5xl font-semibold text-zinc-900">
+                $2.5k
+              </span>
               <span className="text-sm text-zinc-500">paid pilot, 2 weeks</span>
             </div>
             <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-700">
@@ -111,7 +113,7 @@ export default function PricingPage() {
             </p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-zinc-200 p-4">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                 <p className="text-sm font-semibold text-zinc-500">Includes</p>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
                   {pilotIncludes.map((item) => (
@@ -119,7 +121,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-zinc-200 p-4">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4">
                 <p className="text-sm font-semibold text-zinc-500">Outcomes</p>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
                   {pilotOutcomes.map((item) => (
@@ -129,7 +131,7 @@ export default function PricingPage() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl bg-zinc-950 p-5 text-white">
+            <div className="mt-6 rounded-2xl bg-zinc-900 p-5 text-white">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
                 Conversion line
               </p>
@@ -145,7 +147,7 @@ export default function PricingPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">
                 Sales angle
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+              <h2 className="mt-2 text-2xl font-semibold text-zinc-900">
                 Promise one measurable result.
               </h2>
               <p className="mt-3 text-base leading-7 text-zinc-700">
@@ -195,7 +197,7 @@ export default function PricingPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
                 Request a pilot
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+              <h2 className="mt-2 text-2xl font-semibold text-zinc-900">
                 Put a buyer in the pipeline.
               </h2>
               <p className="mt-3 text-base leading-7 text-zinc-700">
@@ -204,7 +206,7 @@ export default function PricingPage() {
 
               <div className="mt-5 grid gap-3">
                 <input
-                  className="rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+                  className="rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500"
                   placeholder="Name"
                   value={form.name}
                   onChange={(event) =>
@@ -215,8 +217,9 @@ export default function PricingPage() {
                   }
                 />
                 <input
-                  className="rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+                  className="rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500"
                   placeholder="Work email"
+                  type="email"
                   value={form.email}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -226,7 +229,7 @@ export default function PricingPage() {
                   }
                 />
                 <input
-                  className="rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+                  className="rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500"
                   placeholder="Company"
                   value={form.company}
                   onChange={(event) =>
@@ -237,8 +240,9 @@ export default function PricingPage() {
                   }
                 />
                 <input
-                  className="rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+                  className="rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500"
                   placeholder="Approx. invoices per month"
+                  type="number"
                   value={form.monthly_invoice_volume}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -248,7 +252,7 @@ export default function PricingPage() {
                   }
                 />
                 <textarea
-                  className="min-h-28 rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+                  className="min-h-28 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500"
                   placeholder="What hurts today?"
                   value={form.biggest_pain}
                   onChange={(event) =>
@@ -259,7 +263,7 @@ export default function PricingPage() {
                   }
                 />
                 <textarea
-                  className="min-h-24 rounded-xl border border-zinc-300 px-4 py-3 text-sm outline-none transition focus:border-zinc-500"
+                  className="min-h-24 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-500"
                   placeholder="Anything else we should know?"
                   value={form.notes}
                   onChange={(event) =>
@@ -270,7 +274,7 @@ export default function PricingPage() {
                   }
                 />
                 <button
-                  className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800 disabled:opacity-60"
+                  className="rounded-full bg-zinc-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800 disabled:opacity-60"
                   disabled={isSubmitting}
                   onClick={submitLead}
                   type="button"
