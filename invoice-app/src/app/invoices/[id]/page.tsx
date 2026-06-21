@@ -1,535 +1,492 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  ArrowLeft,
-  Edit2,
-  Save,
-  ThumbsUp,
-  ThumbsDown,
-} from "lucide-react";
-import { InvoiceDetailSkeleton } from "@/components/skeletons";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { LineItemsSection } from "@/components/invoice/LineItemsSection";
-import { PartiesSection } from "@/components/invoice/PartiesSection";
-import { AdditionalInfoSection } from "@/components/invoice/AdditionalInfoSection";
-import type { FullInvoice } from "@/types/full-invoice";
+import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
-interface InvoiceField {
-  value: any;
-  confidence: "high" | "medium" | "low";
-}
-
-interface ValidationFlag {
-  id: string;
-  type: string;
-  severity: "critical" | "warning" | "info";
-  field?: string;
-  message: string;
-}
-
-interface Invoice {
+type InvoiceDetail = {
   id: string;
   status: string;
-  pdfUrl: string;
-  fields: {
-    vendor: InvoiceField;
-    invoiceNumber: InvoiceField;
-    invoiceDate: InvoiceField;
-    subtotal: InvoiceField;
-    tax: InvoiceField;
-    total: InvoiceField;
-    poNumber: InvoiceField;
-    currency: InvoiceField;
+  approved_at: string | null;
+  approved_by: string | null;
+  rejected_at: string | null;
+  rejected_by: string | null;
+  rejection_reason: string | null;
+  fields: Record<string, { value: unknown; confidence: string | null }>;
+  pdf_url: string | null;
+  validation_summary: {
+    total_flags: number;
+    critical_flags: number;
+    warning_flags: number;
+    info_flags: number;
   };
-  fullInvoice?: FullInvoice; // Complete structured data
-  validationFlags: ValidationFlag[];
-  job: {
-    filename: string;
-    uploaded_at: string;
+  validation_flags: Array<{
+    type: string;
+    severity: string;
+    field: string | null;
+    message: string;
+  }>;
+  audit_logs: Array<{
+    action: string;
+    actor_name: string | null;
+    actor_id: string | null;
+    comment: string | null;
+    created_at: string;
+    field_changes: Record<string, unknown> | null;
+  }>;
+  audit_summary: {
+    last_action: string;
+    last_actor: string | null;
+    last_updated_at: string;
   };
-}
+};
+
+type InvoiceResponse = {
+  invoice: InvoiceDetail;
+};
 
 export default function InvoiceDetailPage() {
-  const params = useParams();
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editedFields, setEditedFields] = useState<Record<string, any>>({});
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
+  const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({
+    vendor_name: "",
+    invoice_number: "",
+    invoice_date: "",
+    subtotal: "",
+    tax: "",
+    total: "",
+    po_number: "",
+    currency: "",
+  });
+  const [adminToken, setAdminToken] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchInvoice();
-  }, [params.id]);
+    const savedToken = window.localStorage.getItem("invoice-app-admin-token");
+    if (!savedToken) return;
 
-  const fetchInvoice = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/invoices/${params.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setInvoice(data.invoice);
+    const timer = window.setTimeout(() => {
+      setAdminToken(savedToken);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("invoice-app-admin-token", adminToken);
+  }, [adminToken]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadInvoice() {
+      try {
+        if (!id) return;
+        if (active) setError("");
+        const res = await fetch(`/api/invoices/${id}`, {
+          cache: "no-store",
+          ...(adminToken
+            ? { headers: { Authorization: `Bearer ${adminToken}` } }
+            : {}),
+        });
+        const payload = (await res.json()) as
+          | InvoiceResponse
+          | { error?: { message?: string } };
+
+        if (!res.ok) {
+          const msg =
+            "error" in payload
+              ? payload.error?.message
+              : "Failed to load invoice.";
+          if (active) setError(msg ?? "Failed to load invoice.");
+          return;
+        }
+
+        if (active) setInvoice((payload as InvoiceResponse).invoice);
+      } catch {
+        if (active) setError("Failed to load invoice.");
+      } finally {
+        if (active) setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch invoice:", error);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const handleSave = async () => {
-    if (Object.keys(editedFields).length === 0) {
-      setEditing(false);
+    loadInvoice();
+    return () => {
+      active = false;
+    };
+  }, [adminToken, id]);
+
+  useEffect(() => {
+    if (invoice) {
+      const timer = window.setTimeout(() => {
+        setDraft({
+          vendor_name: String(invoice.fields.vendor_name.value ?? ""),
+          invoice_number: String(invoice.fields.invoice_number.value ?? ""),
+          invoice_date: String(invoice.fields.invoice_date.value ?? ""),
+          subtotal: String(invoice.fields.subtotal.value ?? ""),
+          tax: String(invoice.fields.tax.value ?? ""),
+          total: String(invoice.fields.total.value ?? ""),
+          po_number: String(invoice.fields.po_number.value ?? ""),
+          currency: String(invoice.fields.currency.value ?? ""),
+        });
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }
+  }, [invoice]);
+
+  const hasChanges = useMemo(() => {
+    if (!invoice) return false;
+    return Object.entries(draft).some(([key, value]) => {
+      const original = String(invoice.fields[key]?.value ?? "");
+      return original !== value;
+    });
+  }, [draft, invoice]);
+
+  async function sendAction(
+    method: "PATCH" | "POST",
+    body: Record<string, unknown>,
+  ) {
+    if (!id) return;
+    setActionError("");
+    setActionMessage("");
+
+    const res = await fetch(`/api/invoices/${id}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+
+    const payload = (await res.json()) as
+      | InvoiceResponse
+      | { error?: { message?: string } };
+
+    if (!res.ok) {
+      const msg =
+        "error" in payload ? payload.error?.message : "Action failed.";
+      setActionError(msg ?? "Action failed.");
       return;
     }
 
-    try {
-      setSaving(true);
-      const response = await fetch(`/api/invoices/${params.id}/update`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fields: editedFields,
-          user: { id: "demo-user", name: "Demo User" },
-        }),
-      });
-
-      if (response.ok) {
-        await fetchInvoice();
-        setEditedFields({});
-        setEditing(false);
-      }
-    } catch (error) {
-      console.error("Failed to save changes:", error);
-    } finally {
-      setSaving(false);
+    setActionMessage("Action saved.");
+    if (method === "PATCH") {
+      await Promise.resolve();
     }
-  };
-
-  const handleApprove = async () => {
-    try {
-      const response = await fetch(`/api/invoices/${params.id}/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          comment: "Approved from detail view",
-          user: { id: "demo-user", name: "Demo User" },
-        }),
-      });
-
-      if (response.ok) {
-        window.location.href = "/exceptions";
-      }
-    } catch (error) {
-      console.error("Failed to approve invoice:", error);
+    if (method === "POST") {
+      setInvoice((current) =>
+        current
+          ? {
+              ...current,
+              status: (body.action === "approve"
+                ? "approved"
+                : "rejected") as string,
+            }
+          : current,
+      );
     }
-  };
-
-  const handleReject = async () => {
-    const reason = prompt("Please provide a reason for rejection:");
-    if (!reason) return;
-
-    try {
-      const response = await fetch(`/api/invoices/${params.id}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reason,
-          user: { id: "demo-user", name: "Demo User" },
-        }),
-      });
-
-      if (response.ok) {
-        window.location.href = "/exceptions";
-      }
-    } catch (error) {
-      console.error("Failed to reject invoice:", error);
+    const refreshed = await fetch(`/api/invoices/${id}`, {
+      cache: "no-store",
+      ...(adminToken
+        ? { headers: { Authorization: `Bearer ${adminToken}` } }
+        : {}),
+    });
+    if (refreshed.ok) {
+      const nextPayload = (await refreshed.json()) as InvoiceResponse;
+      setInvoice(nextPayload.invoice);
     }
-  };
-
-  const updateField = (field: string, value: any) => {
-    setEditedFields((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const getConfidenceBadge = (confidence: "high" | "medium" | "low") => {
-    const variants = {
-      high: "success",
-      medium: "warning",
-      low: "destructive",
-    };
-    return (
-      <Badge variant={variants[confidence] as any} className="ml-2 text-xs">
-        {confidence} confidence
-      </Badge>
-    );
-  };
-
-  const getSeverityIcon = (severity: "critical" | "warning" | "info") => {
-    switch (severity) {
-      case "critical":
-        return <XCircle className="text-destructive h-4 w-4" />;
-      case "warning":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-blue-500" />;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-background min-h-screen">
-        <header className="bg-background border-b">
-          <div className="container mx-auto flex h-16 items-center px-4">
-            <div className="bg-muted h-8 w-32 animate-pulse rounded"></div>
-          </div>
-        </header>
-        <div className="container mx-auto px-4 py-8">
-          <InvoiceDetailSkeleton />
-        </div>
-      </div>
-    );
   }
 
-  if (!invoice) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <FileText className="text-muted-foreground mx-auto mb-4 h-16 w-16" />
-          <h2 className="mb-2 text-2xl font-bold">Invoice Not Found</h2>
-          <p className="text-muted-foreground mb-4">The requested invoice could not be found.</p>
-          <Link href="/exceptions">
-            <Button>Back to Queue</Button>
-          </Link>
-        </div>
-      </div>
-    );
+  async function saveChanges() {
+    await sendAction("PATCH", {
+      fields: {
+        vendor_name: draft.vendor_name,
+        invoice_number: draft.invoice_number,
+        invoice_date: draft.invoice_date,
+        subtotal: draft.subtotal === "" ? null : Number(draft.subtotal),
+        tax: draft.tax === "" ? null : Number(draft.tax),
+        total: draft.total === "" ? null : Number(draft.total),
+        po_number: draft.po_number,
+        currency: draft.currency,
+      },
+      comment: "Manual correction from invoice detail page.",
+    });
+  }
+
+  async function decide(action: "approve" | "reject") {
+    await sendAction("POST", {
+      action,
+      comment:
+        action === "approve"
+          ? "Approved from detail page."
+          : "Rejected from detail page.",
+    });
   }
 
   return (
-    <div className="bg-background min-h-screen">
-      {/* Header */}
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b backdrop-blur">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link href="/exceptions">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <FileText className="text-primary h-5 w-5" />
-              <span className="font-semibold">
-                {invoice.fields.vendor.value || "Unknown Vendor"}
-              </span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="text-destructive" onClick={handleReject}>
-              <ThumbsDown className="mr-2 h-4 w-4" />
-              Reject
-            </Button>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={handleApprove}>
-              <ThumbsUp className="mr-2 h-4 w-4" />
-              Approve
-            </Button>
-          </div>
+    <main className="mx-auto w-full max-w-5xl px-6 py-10">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <p className="mb-1 text-sm font-medium uppercase tracking-wide text-zinc-600">
+            Invoice Detail
+          </p>
+          <h1 className="text-2xl font-semibold">{id}</h1>
         </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left Column - PDF Viewer */}
-          <div>
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle>Invoice Document</CardTitle>
-                <CardDescription>{invoice.job.filename}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-muted aspect-[8.5/11] w-full overflow-hidden rounded-lg border">
-                  <iframe src={invoice.pdfUrl} className="h-full w-full" title="Invoice PDF" />
-                </div>
-                <p className="text-muted-foreground mt-4 text-sm">
-                  Uploaded {formatDate(invoice.job.uploaded_at)}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Extracted Fields */}
-          <div className="space-y-6">
-            {/* Validation Flags */}
-            {invoice.validationFlags.length > 0 && (
-              <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-orange-600" />
-                    <CardTitle>Validation Issues</CardTitle>
-                  </div>
-                  <CardDescription>
-                    {invoice.validationFlags.length} issue(s) need attention
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {invoice.validationFlags.map((flag) => (
-                    <div
-                      key={flag.id}
-                      className="bg-background flex items-start gap-2 rounded-lg p-3"
-                    >
-                      {getSeverityIcon(flag.severity)}
-                      <div className="flex-1">
-                        <p className="font-medium">{flag.message}</p>
-                        {flag.field && (
-                          <p className="text-muted-foreground text-sm">Field: {flag.field}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Extracted Fields */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Extracted Data</CardTitle>
-                    <CardDescription>Review and edit as needed</CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => (editing ? handleSave() : setEditing(true))}
-                    disabled={saving}
-                  >
-                    {editing ? (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        {saving ? "Saving..." : "Save"}
-                      </>
-                    ) : (
-                      <>
-                        <Edit2 className="mr-2 h-4 w-4" />
-                        Edit
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Vendor */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    Vendor
-                    {invoice.fields.vendor.confidence &&
-                      getConfidenceBadge(invoice.fields.vendor.confidence)}
-                  </label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      className="w-full rounded-md border px-3 py-2"
-                      defaultValue={invoice.fields.vendor.value || ""}
-                      onChange={(e) => updateField("vendor", e.target.value)}
-                    />
-                  ) : (
-                    <p className="text-lg">{invoice.fields.vendor.value || "—"}</p>
-                  )}
-                </div>
-
-                {/* Invoice Number */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    Invoice Number
-                    {invoice.fields.invoiceNumber.confidence &&
-                      getConfidenceBadge(invoice.fields.invoiceNumber.confidence)}
-                  </label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      className="w-full rounded-md border px-3 py-2"
-                      defaultValue={invoice.fields.invoiceNumber.value || ""}
-                      onChange={(e) => updateField("invoice_number", e.target.value)}
-                    />
-                  ) : (
-                    <p className="text-lg">{invoice.fields.invoiceNumber.value || "—"}</p>
-                  )}
-                </div>
-
-                {/* Invoice Date */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    Invoice Date
-                    {invoice.fields.invoiceDate.confidence &&
-                      getConfidenceBadge(invoice.fields.invoiceDate.confidence)}
-                  </label>
-                  {editing ? (
-                    <input
-                      type="date"
-                      className="w-full rounded-md border px-3 py-2"
-                      onChange={(e) => updateField("invoice_date", e.target.value)}
-                      defaultValue={invoice.fields.invoiceDate.value || ""}
-                    />
-                  ) : (
-                    <p className="text-lg">
-                      {invoice.fields.invoiceDate.value
-                        ? formatDate(invoice.fields.invoiceDate.value)
-                        : "—"}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* Subtotal */}
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Subtotal
-                      {invoice.fields.subtotal.confidence &&
-                        getConfidenceBadge(invoice.fields.subtotal.confidence)}
-                    </label>
-                    {editing ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="w-full rounded-md border px-3 py-2"
-                        onChange={(e) => updateField("subtotal", parseFloat(e.target.value) || 0)}
-                        defaultValue={invoice.fields.subtotal.value || ""}
-                      />
-                    ) : (
-                      <p className="text-lg">
-                        {invoice.fields.subtotal.value
-                          ? formatCurrency(
-                              invoice.fields.subtotal.value,
-                              invoice.fields.currency.value
-                            )
-                          : "—"}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Tax */}
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Tax
-                      {invoice.fields.tax.confidence &&
-                        getConfidenceBadge(invoice.fields.tax.confidence)}
-                    </label>
-                    {editing ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="w-full rounded-md border px-3 py-2"
-                        onChange={(e) => updateField("tax", parseFloat(e.target.value) || 0)}
-                        defaultValue={invoice.fields.tax.value || ""}
-                      />
-                    ) : (
-                      <p className="text-lg">
-                        {invoice.fields.tax.value
-                          ? formatCurrency(invoice.fields.tax.value, invoice.fields.currency.value)
-                          : "—"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Total */}
-                <div className="bg-muted rounded-lg p-4">
-                  <label className="mb-1 block text-sm font-medium">
-                    Total Amount
-                    {invoice.fields.total.confidence &&
-                      getConfidenceBadge(invoice.fields.total.confidence)}
-                  </label>
-                  {editing ? (
-                    <input
-                      type="number"
-                      step="0.01"
-                      onChange={(e) => updateField("total", parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-md border px-3 py-2"
-                      defaultValue={invoice.fields.total.value || ""}
-                    />
-                  ) : (
-                    <p className="text-2xl font-bold">
-                      {invoice.fields.total.value
-                        ? formatCurrency(invoice.fields.total.value, invoice.fields.currency.value)
-                        : "—"}
-                    </p>
-                  )}
-                </div>
-
-                {/* PO Number */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    PO Number
-                    {invoice.fields.poNumber.confidence &&
-                      getConfidenceBadge(invoice.fields.poNumber.confidence)}
-                  </label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      onChange={(e) => updateField("po_number", e.target.value)}
-                      className="w-full rounded-md border px-3 py-2"
-                      defaultValue={invoice.fields.poNumber.value || ""}
-                    />
-                  ) : (
-                    <p className="text-lg">{invoice.fields.poNumber.value || "—"}</p>
-                  )}
-                </div>
-
-                {/* Currency */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Currency</label>
-                  {editing ? (
-                    <select
-                      className="w-full rounded-md border px-3 py-2"
-                      defaultValue={invoice.fields.currency.value || "USD"}
-                      onChange={(e) => updateField("currency", e.target.value)}
-                    >
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                    </select>
-                  ) : (
-                    <p className="text-lg">{invoice.fields.currency.value || "USD"}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Additional Invoice Data Sections */}
-            {invoice.fullInvoice && (
-              <div className="space-y-4">
-                {/* Line Items */}
-                <LineItemsSection
-                  lineItems={invoice.fullInvoice.line_items || []}
-                  currency={invoice.fields.currency.value || "USD"}
-                />
-
-                {/* Parties & Addresses */}
-                <PartiesSection parties={invoice.fullInvoice.parties} />
-
-                {/* Payment, Taxes, Discounts, Notes */}
-                <AdditionalInfoSection
-                  payment={invoice.fullInvoice.payment}
-                  taxes={invoice.fullInvoice.taxes || []}
-                  discounts={invoice.fullInvoice.discounts || []}
-                  notes={invoice.fullInvoice.notes || []}
-                  currency={invoice.fields.currency.value || "USD"}
-                />
-              </div>
-            )}
-          </div>
+        <div className="flex gap-3">
+          <Link className="text-sm underline" href="/exceptions">
+            Back to Exceptions
+          </Link>
+          <Link className="text-sm underline" href="/jobs">
+            Jobs
+          </Link>
         </div>
       </div>
-    </div>
+
+      {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
+      {actionError ? (
+        <p className="mb-4 text-sm text-red-700">{actionError}</p>
+      ) : null}
+      {actionMessage ? (
+        <p className="mb-4 text-sm text-emerald-700">{actionMessage}</p>
+      ) : null}
+
+      <section className="rounded-xl border border-black/10 bg-white p-6">
+        {isLoading ? (
+          <p>Loading invoice...</p>
+        ) : invoice ? (
+          <div className="space-y-6">
+            <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+              <div className="rounded-lg border border-black/10 p-4">
+                <p className="text-sm font-medium">Review Controls</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {Object.entries({
+                    vendor_name: "Vendor name",
+                    invoice_number: "Invoice number",
+                    invoice_date: "Invoice date",
+                    subtotal: "Subtotal",
+                    tax: "Tax",
+                    total: "Total",
+                    po_number: "PO number",
+                    currency: "Currency",
+                  }).map(([key, label]) => (
+                    <label key={key} className="flex flex-col gap-1 text-sm">
+                      <span className="text-zinc-600">{label}</span>
+                      <input
+                        className="rounded-md border border-black/15 px-3 py-2"
+                        value={draft[key] ?? ""}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            [key]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    disabled={!hasChanges}
+                    onClick={saveChanges}
+                    type="button"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium"
+                    onClick={() => {
+                      if (!invoice) return;
+                      setDraft({
+                        vendor_name: String(
+                          invoice.fields.vendor_name.value ?? "",
+                        ),
+                        invoice_number: String(
+                          invoice.fields.invoice_number.value ?? "",
+                        ),
+                        invoice_date: String(
+                          invoice.fields.invoice_date.value ?? "",
+                        ),
+                        subtotal: String(invoice.fields.subtotal.value ?? ""),
+                        tax: String(invoice.fields.tax.value ?? ""),
+                        total: String(invoice.fields.total.value ?? ""),
+                        po_number: String(invoice.fields.po_number.value ?? ""),
+                        currency: String(invoice.fields.currency.value ?? ""),
+                      });
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-black/10 p-4">
+                <p className="text-sm font-medium">Decision Actions</p>
+                <label className="mt-3 flex flex-col gap-1 text-sm">
+                  <span className="text-zinc-600">Admin token</span>
+                  <input
+                    className="rounded-md border border-black/15 px-3 py-2"
+                    placeholder="Bearer token"
+                    value={adminToken}
+                    onChange={(event) => setAdminToken(event.target.value)}
+                  />
+                </label>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white"
+                    onClick={() => decide("approve")}
+                    type="button"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="rounded-md bg-rose-700 px-4 py-2 text-sm font-medium text-white"
+                    onClick={() => decide("reject")}
+                    type="button"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {Object.entries(invoice.fields).map(([fieldName, field]) => (
+                <div
+                  key={fieldName}
+                  className="rounded-lg border border-black/10 p-4"
+                >
+                  <p className="text-xs uppercase tracking-wide text-zinc-500">
+                    {fieldName.replace(/_/g, " ")}
+                  </p>
+                  <p className="mt-2 text-sm font-medium">
+                    {String(field.value ?? "-")}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Confidence: {field.confidence ?? "n/a"}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-black/10 p-4">
+                <p className="text-sm font-medium">Validation Flags</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-red-50 px-2 py-1 font-medium text-red-700">
+                    {invoice.validation_summary.critical_flags} critical
+                  </span>
+                  <span className="rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700">
+                    {invoice.validation_summary.warning_flags} warning
+                  </span>
+                  <span className="rounded-full bg-zinc-100 px-2 py-1 font-medium text-zinc-700">
+                    {invoice.validation_summary.total_flags} total
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2 text-sm">
+                  {invoice.validation_flags.length === 0 ? (
+                    <p className="text-zinc-600">No validation flags.</p>
+                  ) : (
+                    invoice.validation_flags.map((flag, index) => (
+                      <div
+                        key={`${flag.field ?? "flag"}-${index}`}
+                        className="rounded-md border border-black/10 bg-zinc-50 p-3"
+                      >
+                        <p className="font-medium capitalize">
+                          {flag.severity} - {flag.field ?? "general"}
+                        </p>
+                        <p className="text-zinc-700">{flag.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-black/10 p-4">
+                <p className="text-sm font-medium">Audit Summary</p>
+                <dl className="mt-3 space-y-2 text-sm text-zinc-700">
+                  <div className="flex justify-between gap-4">
+                    <dt>Last action</dt>
+                    <dd>{invoice.audit_summary.last_action}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt>Last actor</dt>
+                    <dd>{invoice.audit_summary.last_actor ?? "system"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt>Updated</dt>
+                    <dd>
+                      {new Date(
+                        invoice.audit_summary.last_updated_at,
+                      ).toLocaleString()}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-4 space-y-2 text-xs text-zinc-600">
+                  {invoice.approved_at ? (
+                    <p>
+                      Approved by {invoice.approved_by ?? "system"} at{" "}
+                      {new Date(invoice.approved_at).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {invoice.rejected_at ? (
+                    <p>
+                      Rejected by {invoice.rejected_by ?? "system"} at{" "}
+                      {new Date(invoice.rejected_at).toLocaleString()}
+                      {invoice.rejection_reason
+                        ? ` - ${invoice.rejection_reason}`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+                {invoice.pdf_url ? (
+                  <p className="mt-4 text-xs text-zinc-500">
+                    PDF URL: {invoice.pdf_url}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-black/10 p-4">
+              <p className="text-sm font-medium">Recent Activity</p>
+              <div className="mt-3 space-y-3 text-sm">
+                {invoice.audit_logs.length === 0 ? (
+                  <p className="text-zinc-600">No audit entries yet.</p>
+                ) : (
+                  invoice.audit_logs.map((log) => (
+                    <div
+                      key={`${log.action}-${log.created_at}`}
+                      className="rounded-md border border-black/10 bg-zinc-50 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="font-medium capitalize">{log.action}</p>
+                        <p className="text-xs text-zinc-500">
+                          {new Date(log.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="text-zinc-700">
+                        Actor: {log.actor_name ?? log.actor_id ?? "system"}
+                      </p>
+                      {log.comment ? (
+                        <p className="text-zinc-700">Comment: {log.comment}</p>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p>No invoice data found.</p>
+        )}
+      </section>
+    </main>
   );
 }

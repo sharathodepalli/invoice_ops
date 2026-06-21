@@ -1,169 +1,65 @@
 # Invoice/AP Automation Platform
 
-Enterprise-grade invoice processing and accounts payable automation system built with Next.js, Supabase, and OpenAI GPT-4 Vision.
+Invoice automation MVP built with Next.js 16, React 19, TypeScript, Tailwind CSS, and optional Supabase persistence.
 
-## Features
+## What it does
 
-- **Smart PDF Extraction**: GPT-4 Vision API for accurate data extraction from scanned invoices
-- **Comprehensive Data Schema**: Full invoice structure with confidence scoring
-- **Exception Management**: Automated validation with manual review queue
-- **Dual CSV Export**: Header-based and line-item formats for ERP integration
-- **Audit Trail**: Complete change tracking with user attribution
-- **Real-time Processing**: Background job processing with status updates
+- Upload PDF invoices and create one job per file.
+- Extract core fields with a deterministic MVP pipeline.
+- Validate totals, required fields, duplicates, and missing PO numbers.
+- Review exceptions, edit invoice fields, approve or reject, and track audit history.
+- Export approved invoices to ERP-ready CSV and retain export history.
 
-## Tech Stack
+## Current App Surface
 
-- **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Next.js API Routes
-- **Database**: PostgreSQL (Supabase)
-- **OCR/AI**: OpenAI GPT-4 Vision API
-- **Storage**: Local file system (S3-ready)
+- `/` home
+- `/upload` upload and processing entry point
+- `/jobs` job list and processing status
+- `/exceptions` queue for filtered review
+- `/invoices/[id]` invoice detail and review actions
+- `/exports` CSV export and export history
+- API routes under `/api/upload`, `/api/jobs`, `/api/invoices`, `/api/exports`, and `/api/maintenance/cleanup`
 
-## Getting Started
+## Auth Model
 
-### Prerequisites
+- Admin-protected routes expect a bearer token.
+- System-only maintenance cleanup uses the system token.
+- In development, the app supports fallback tokens when env vars are not configured.
 
-- Node.js 18+
-- PostgreSQL database (or Supabase account)
-- OpenAI API key
-
-### Installation
-
-1. Clone the repository:
+## Setup
 
 ```bash
-git clone https://github.com/sharathodepalli/invoice_ops.git
-cd invoice_ops/invoice-app
-```
-
-2. Install dependencies:
-
-```bash
+cd invoice-app
 npm install
-```
-
-3. Set up environment variables:
-
-```bash
 cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```
-OPENAI_API_KEY=your_openai_api_key
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-```
-
-4. Set up the database:
-
-```bash
-# Run the SQL scripts in supabase/
-# 1. setup.sql
-# 2. seed.sql (optional)
-```
-
-5. Run the development server:
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Required environment values:
 
-## Architecture
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SLICE_2_ADMIN_TOKEN`
+- `SLICE_2_SYSTEM_TOKEN`
 
-### Data Pipeline
-
-1. **Upload** → PDF files saved to `/uploads`
-2. **OCR Detection** → Identifies image-based PDFs
-3. **AI Extraction** → GPT-4 Vision extracts all invoice fields
-4. **Validation** → Rule-based checks for completeness and accuracy
-5. **Exception Queue** → Flagged items for manual review
-6. **Approval** → User review and field correction
-7. **Export** → CSV generation for ERP import
-
-### Database Schema
-
-- `jobs` - Processing job tracking
-- `invoices` - Extracted invoice data with full JSON
-- `validation_flags` - Exception tracking
-- `audit_logs` - Change history
-- `export_records` - Export history
-
-## API Endpoints
-
-- `POST /api/upload` - Upload and process invoice
-- `GET /api/invoices` - List invoices with filters
-- `GET /api/invoices/:id` - Get invoice details
-- `PATCH /api/invoices/:id` - Update invoice fields
-- `POST /api/invoices/:id/approve` - Approve invoice
-- `POST /api/invoices/:id/reject` - Reject invoice
-- `GET /api/export` - Export invoices to CSV
-
-## Project Structure
-
-```
-invoice-app/
-├── src/
-│   ├── app/              # Next.js pages and API routes
-│   ├── components/       # React components
-│   ├── lib/             # Core business logic
-│   │   ├── ocr.ts       # PDF detection
-│   │   ├── extraction.ts # GPT-4 Vision integration
-│   │   ├── confidence.ts # Confidence scoring
-│   │   ├── validation.ts # Business rules
-│   │   └── processor.ts  # Job orchestration
-│   └── types/           # TypeScript definitions
-├── supabase/            # Database scripts
-└── public/              # Static assets
-```
-
-## Development
-
-### Key Files
-
-- `src/lib/extraction.ts` - AI extraction logic
-- `src/lib/confidence.ts` - Confidence calculation engine
-- `src/types/full-invoice.ts` - Canonical invoice schema
-- `src/lib/validation.ts` - Validation rules
-
-### Running Tests
+## Validation
 
 ```bash
-npm test
-```
-
-### Building for Production
-
-```bash
+npm run test
+npm run lint
 npm run build
-npm start
 ```
 
-## Deployment
+Current verification status:
 
-The application is ready for deployment to:
+- Tests: 31/31 passing
+- Lint: passing
+- Build: passing
 
-- Vercel (recommended for Next.js)
-- AWS (EC2/ECS)
-- Docker containers
+## Notes
 
-## License
-
-MIT
-
-## Contributing
-
-Pull requests welcome! Please ensure:
-
-- TypeScript types are complete
-- No console errors
-- Tests pass
-- Code follows existing patterns
-
-## Support
-
-For issues and questions, please open a GitHub issue.
+- The app uses local JSON/file fallback when Supabase is not configured.
+- The known Turbopack NFT trace warnings are from filesystem-backed paths and are non-blocking.
+- Demo and testing flows are documented in [TESTING_GUIDE.md](TESTING_GUIDE.md) and [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
+- If you are selling this, start with [SALES_PITCH.md](SALES_PITCH.md).
+- The first paid offer is described in [invoice-app/src/app/pricing/page.tsx](invoice-app/src/app/pricing/page.tsx).

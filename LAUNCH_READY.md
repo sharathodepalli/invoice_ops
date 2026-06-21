@@ -1,260 +1,38 @@
-# 🎯 INVOICE AUTOMATION MVP - LAUNCH READY
+# Launch Ready
 
-## ✅ PROJECT COMPLETE IN 8 HOURS
+The MVP is ready for demo and release review.
 
-From **zero** to **production-ready** invoice automation platform.
+## Current Status
 
----
+- Core workflow is implemented end to end.
+- Slice 7 hardening is complete.
+- Final review gate is Go.
+- Known build warnings are non-blocking Turbopack filesystem-tracing warnings.
 
-## 📊 What You Now Have
+## Demo Checklist
 
-### Full-Stack Application
+1. Start the app with `npm run dev`.
+2. Upload a PDF invoice from `/upload`.
+3. Open `/jobs` and show processing status.
+4. Open `/exceptions`, enter the admin token, and filter the queue.
+5. Open `/invoices/[id]`, edit a field, save, and approve or reject.
+6. Open `/exports`, enter the admin token, and export approved invoices.
 
-- **8 Pages** with professional UI/UX
-- **10 API Endpoints** for complete operations
-- **5 Database Tables** with proper relationships
-- **40+ Features** across the platform
-- **100% TypeScript** with strict type checking
-- **Complete Audit Trail** for compliance
+## Validation Checklist
 
-### Core Workflow
+- `npm run test` passes.
+- `npm run lint` passes.
+- `npm run build` passes.
+- `/api/invoices` and `/api/invoices/[id]` require admin auth.
+- `/api/maintenance/cleanup` requires system auth.
+- Request logging redacts sensitive fields.
+- Retention cleanup skips referenced uploads.
 
-```
-Upload PDF
-    ↓
-Extract Data (OpenAI)
-    ↓
-Validate (4 rules)
-    ↓
-Flag Exceptions
-    ↓
-Review & Edit
-    ↓
-Approve/Reject
-    ↓
-Export to CSV
-```
+## Release Notes
 
-### Key Pages
-
-1. **Landing** - Hero section with features
-2. **Upload** - Drag-drop file upload
-3. **Jobs** - Real-time processing queue
-4. **Exceptions** - Filterable invoice dashboard
-5. **Invoice Detail** - PDF viewer + editable fields
-6. **Export** - CSV generator with history
-7. **Debug** - One-click demo setup
-8. **API Routes** - 10 REST endpoints
-
----
-
-## 🚀 To Start Using
-
-### Quick Start (2 minutes)
-
-```bash
-# 1. Start dev server
-cd invoice-app && npm run dev
-
-# 2. Go to debug page
-http://localhost:3000/debug
-
-# 3. Click "Seed Demo Data"
-
-# 4. Test the workflow
-# Upload → Exceptions → Detail → Approve → Export
-```
-
-### Complete Testing (5 minutes)
-
-Follow the **TESTING_GUIDE.md** with step-by-step workflow
-
-### Production Deployment
-
-- Deploy to Vercel (1 click)
-- Set environment variables
-- Configure Supabase production project
-- You're live!
-
----
-
-## 📁 Key Files
-
-**Documentation** (Start here!)
-
-- `README_FINAL.md` ← Complete overview
-- `TESTING_GUIDE.md` ← How to test everything
-- `DEMO_SCRIPT.md` ← Video recording guide
-- `PROJECT_COMPLETE.md` ← All features listed
-
-**Application** (What you're building)
-
-- `src/app/` ← 8 pages + API routes
-- `src/lib/` ← Business logic
-- `src/components/` ← UI components
-- `supabase/schema.sql` ← Database
-
-**Configuration**
-
-- `.env.local` ← Your secrets (configure this!)
-- `package.json` ← Dependencies
-- `tsconfig.json` ← TypeScript config
-- `tailwind.config.ts` ← Styling config
-
----
-
-## ⚡ Core Features
-
-### ✅ Upload & Processing
-
-- Drag-drop file upload
-- Real-time job queue
-- Automatic PDF processing
-- Local file storage (S3-ready)
-
-### ✅ AI Extraction
-
-- OpenAI GPT-4 integration
-- 8 field extraction
-- Confidence scoring
-- Pattern matching fallback
-
-### ✅ Validation
-
-- 4 automated rules
-- Critical/Warning/Info levels
-- Exception flagging
-- Database logging
-
-### ✅ Review & Approval
-
-- Invoice detail view
-- Field editing
-- Approve/Reject actions
-- Complete audit trail
-
-### ✅ Export
-
-- ERP-ready CSV
-- Multi-select capability
-- Export history
-- One-click download
-
----
-
-## 💻 Tech Stack
-
-| Component  | Technology                    |
-| ---------- | ----------------------------- |
-| Frontend   | Next.js 14, React, TypeScript |
-| Styling    | Tailwind CSS, shadcn/ui       |
-| Backend    | Next.js API routes            |
-| Database   | Supabase (PostgreSQL)         |
-| Storage    | Local filesystem (S3-ready)   |
-| AI         | OpenAI GPT-4o-mini            |
-| OCR        | pdf-parse with fallback       |
-| Deployment | Vercel ready                  |
-
----
-
-## 📈 Performance
-
-- Page load: ~400ms
-- File upload: <5 seconds
-- AI extraction: ~2 seconds
-- CSV export: <1 second
-- Auto-refresh: 10 second interval
-- Database queries: <100ms
-
----
-
-## 🔒 Security & Compliance
-
-✅ TypeScript strict mode  
-✅ Environment variables for secrets  
-✅ Complete audit logging  
-✅ Field-level change tracking  
-✅ User attribution on all actions  
-✅ Error handling throughout  
-✅ RLS-ready database policies
-
----
-
-## 🎨 User Experience
-
-✅ Responsive design (mobile-friendly)  
-✅ Dark mode support  
-✅ Loading skeleton screens  
-✅ Smooth transitions  
-✅ Clear error messages  
-✅ Empty states handled  
-✅ Keyboard navigation ready
-
----
-
-## 📝 Next Steps
-
-### Immediate (Today)
-
-1. ✅ Review documentation
-2. ✅ Run the demo
-3. ✅ Test complete workflow
-4. ✅ Record demo video
-
-### Short-term (This week)
-
-1. Configure production Supabase
-2. Deploy to Vercel
-3. Set up custom domain
-4. Test with real PDF files
-5. Share with stakeholders
-
-### Medium-term (This month)
-
-1. Add user authentication
-2. Migrate to AWS S3
-3. Set up email notifications
-4. Add more validation rules
-5. Create admin dashboard
-
-### Long-term (This quarter)
-
-1. ERP integrations
-2. Mobile app
-3. Advanced analytics
-4. Team collaboration
-5. Custom reporting
-
----
-
-## 🎬 Demo Video
-
-**Length:** 2-3 minutes  
-**What to show:**
-
-1. Upload page (drag-drop demo)
-2. Processing queue (auto-refresh)
-3. Exceptions with filters
-4. Invoice detail (PDF + fields)
-5. Approval workflow
-6. CSV export
-
-**See:** DEMO_SCRIPT.md for complete narration with timing
-
----
-
-## 📊 Statistics
-
-- **2,500+** lines of code
-- **20+** components
-- **8** pages
-- **10** API routes
-- **5** database tables
-- **40+** features
-- **8** hours to build
-- **100%** TypeScript coverage
-- **5** test workflows
-- **8** documentation files
+- The app supports local file fallback and Supabase-backed persistence.
+- Demo pages rely on the bearer token entered in the UI.
+- The maintenance cleanup route is for operators only.
 
 ---
 
@@ -308,42 +86,6 @@ This is a **complete, production-quality MVP** that:
 - ✅ Ready to scale
 - ✅ Easy to maintain
 - ✅ Well-documented
-
----
-
-## 📞 Quick Reference
-
-**Start development:**
-
-```bash
-npm run dev
-```
-
-**See the app:**
-
-```
-http://localhost:3000
-```
-
-**Demo setup:**
-
-```
-http://localhost:3000/debug
-```
-
-**View database schema:**
-
-```
-supabase/schema.sql
-```
-
-**Read docs:**
-
-```
-README_FINAL.md
-TESTING_GUIDE.md
-DEMO_SCRIPT.md
-```
 
 ---
 

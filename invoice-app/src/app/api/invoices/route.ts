@@ -1,32 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getInvoices } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { AuthError, verifyAuth } from "@/lib/auth-middleware";
+import { listInvoices, type InvoiceStatus } from "@/lib/invoices-store";
+import { buildRequestLogContext, logRequestEvent, resolveRequestId } from "@/lib/request-logger";
 
-export async function GET(request: NextRequest) {
+export const runtime = "nodejs";
+
+const VALID_STATUSES: Array<InvoiceStatus> = ["pending", "exception", "approved", "rejected", "exported"];
+
+function errorResponse(code: string, message: string, status: number, requestId: string) {
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        message,
+        request_id: requestId,
+      },
+    },
+    { status },
+  );
+}
+
+export async function GET(req: Request) {
+  const requestId = resolveRequestId(req);
+  const logContext = buildRequestLogContext(req, "/api/invoices", null, requestId);
   try {
-    const { searchParams } = new URL(request.url);
-    const statusParam = searchParams.get("status");
-    const status = statusParam ? statusParam.split(",") : undefined;
-
-    const invoices = await getInvoices({ status, limit: 100 });
-
-    return NextResponse.json({
-      success: true,
-      invoices: invoices.map((invoice) => ({
-        id: invoice.id,
-        status: invoice.status,
-        filename: invoice.jobs?.filename,
-        vendor: invoice.vendor_value,
-        invoiceNumber: invoice.invoice_number_value,
-        total: invoice.total_value,
-        currency: invoice.currency_value,
-        createdAt: invoice.created_at,
-      })),
-    });
+    verifyAuth(req, "admin");
   } catch (error) {
-    console.error("Get invoices error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch invoices" },
-      { status: 500 }
-    );
+    if (error instanceof AuthError) {
+      logRequestEvent("warn", logContext, "invoice_list_rejected", { reason: error.code });
+      return errorResponse(error.code, error.message, error.status, requestId);
+    }
+
+    logRequestEvent("error", logContext, "invoice_list_failed");
+    return errorResponse("invoice_list_failed", "Failed to load invoices.", 500, requestId);
   }
+
+  const { searchParams } = new URL(req.url);
+  const statusParam = searchParams.get("status");
+  const search = searchParams.get("search") ?? undefined;
+  const limitParam = searchParams.get("limit");
+  const cursor = searchParams.get("cursor") ?? undefined;
+
+  if (statusParam && !VALID_STATUSES.includes(statusParam as InvoiceStatus)) {
+    logRequestEvent("warn", logContext, "invoice_list_rejected", { reason: "invalid_status", status: statusParam });
+    return errorResponse("invalid_status", "Invalid invoice status query parameter.", 400, requestId);
+  }
+
+  const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+  if (limitParam && Number.isNaN(limit)) {
+    logRequestEvent("warn", logContext, "invoice_list_rejected", { reason: "invalid_limit", limit: limitParam });
+    return errorResponse("invalid_limit", "Limit must be a valid number.", 400, requestId);
+  }
+
+  const result = await listInvoices({
+    status: statusParam as InvoiceStatus | undefined,
+    search,
+    limit,
+    cursor,
+  });
+
+  logRequestEvent("info", logContext, "invoice_list_loaded", { invoice_count: result.invoices.length, has_next_cursor: Boolean(result.next_cursor) });
+  return NextResponse.json(result, { status: 200 });
 }

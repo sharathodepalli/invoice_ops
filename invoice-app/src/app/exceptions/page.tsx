@@ -1,282 +1,366 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  RefreshCw,
-  Filter,
-} from "lucide-react";
-import { InvoiceSkeleton } from "@/components/skeletons";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
 
-interface Invoice {
-  id: string;
-  status: "pending" | "exception" | "approved" | "rejected" | "exported";
-  filename?: string;
-  vendor?: string;
-  invoiceNumber?: string;
-  total?: number;
-  currency?: string;
-  createdAt: string;
-}
+type InvoiceStatus =
+  | "pending"
+  | "exception"
+  | "approved"
+  | "rejected"
+  | "exported";
+
+type InvoiceItem = {
+  invoice_id: string;
+  job_id: string;
+  status: InvoiceStatus;
+  vendor_name: string | null;
+  invoice_number: string | null;
+  total: number | null;
+  currency: string | null;
+  has_flags: boolean;
+  validation_summary: {
+    total_flags: number;
+    critical_flags: number;
+    warning_flags: number;
+    info_flags: number;
+  };
+  created_at: string;
+};
+
+type InvoicesResponse = {
+  invoices: InvoiceItem[];
+  next_cursor: string | null;
+};
+
+type SortKey = "newest" | "oldest" | "critical" | "flags" | "vendor";
+
+const STATUS_OPTIONS: Array<{ label: string; value: "" | InvoiceStatus }> = [
+  { label: "All", value: "" },
+  { label: "Pending", value: "pending" },
+  { label: "Exceptions", value: "exception" },
+  { label: "Approved", value: "approved" },
+  { label: "Rejected", value: "rejected" },
+];
 
 export default function ExceptionsPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("all");
+  const [adminToken, setAdminToken] = useState("");
+  const [status, setStatus] = useState<"" | InvoiceStatus>("exception");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("newest");
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const fetchInvoices = async () => {
-    try {
-      setLoading(true);
-      const statusFilter = filter === "all" ? "" : `?status=${filter}`;
-      const response = await fetch(`/api/invoices${statusFilter}`);
-      if (response.ok) {
-        const data = await response.json();
-        setInvoices(data.invoices || []);
+  const summary = useMemo(() => {
+    const total = items.length;
+    const flagged = items.filter((invoice) => invoice.has_flags).length;
+    const pending = items.filter(
+      (invoice) => invoice.status === "pending",
+    ).length;
+    const exceptions = items.filter(
+      (invoice) => invoice.status === "exception",
+    ).length;
+    const criticalFlags = items.reduce(
+      (count, invoice) => count + invoice.validation_summary.critical_flags,
+      0,
+    );
+    const warningFlags = items.reduce(
+      (count, invoice) => count + invoice.validation_summary.warning_flags,
+      0,
+    );
+
+    return { total, flagged, pending, exceptions, criticalFlags, warningFlags };
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    const sorted = [...items];
+
+    sorted.sort((left, right) => {
+      if (sortBy === "vendor") {
+        return (left.vendor_name ?? "").localeCompare(right.vendor_name ?? "");
       }
-    } catch (error) {
-      console.error("Failed to fetch invoices:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+      if (sortBy === "flags") {
+        return (
+          right.validation_summary.total_flags -
+          left.validation_summary.total_flags
+        );
+      }
+
+      if (sortBy === "critical") {
+        return (
+          right.validation_summary.critical_flags -
+            left.validation_summary.critical_flags ||
+          right.validation_summary.total_flags -
+            left.validation_summary.total_flags
+        );
+      }
+
+      const leftTime = new Date(left.created_at).getTime();
+      const rightTime = new Date(right.created_at).getTime();
+
+      if (sortBy === "oldest") {
+        return leftTime - rightTime;
+      }
+
+      return rightTime - leftTime;
+    });
+
+    return sorted;
+  }, [items, sortBy]);
+
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (search.trim()) params.set("search", search.trim());
+    params.set("limit", "50");
+    return params.toString();
+  }, [search, status]);
 
   useEffect(() => {
-    fetchInvoices();
-    const interval = setInterval(fetchInvoices, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
-  }, [filter]);
+    const savedToken = window.localStorage.getItem("invoice-app-admin-token");
+    if (!savedToken) return;
 
-  const getStatusBadge = (status: Invoice["status"]) => {
-    const config: Record<
-      Invoice["status"],
-      { variant: any; icon: React.ReactNode; label: string }
-    > = {
-      pending: {
-        variant: "outline",
-        icon: <Clock className="mr-1 h-3 w-3" />,
-        label: "Pending",
-      },
-      exception: {
-        variant: "warning",
-        icon: <AlertCircle className="mr-1 h-3 w-3" />,
-        label: "Exception",
-      },
-      approved: {
-        variant: "success",
-        icon: <CheckCircle2 className="mr-1 h-3 w-3" />,
-        label: "Approved",
-      },
-      rejected: {
-        variant: "destructive",
-        icon: <XCircle className="mr-1 h-3 w-3" />,
-        label: "Rejected",
-      },
-      exported: {
-        variant: "secondary",
-        icon: <CheckCircle2 className="mr-1 h-3 w-3" />,
-        label: "Exported",
-      },
+    const timer = window.setTimeout(() => {
+      setAdminToken(savedToken);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("invoice-app-admin-token", adminToken);
+  }, [adminToken]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadInvoices() {
+      try {
+        if (active) setError("");
+        const res = await fetch(`/api/invoices?${query}`, {
+          cache: "no-store",
+          ...(adminToken
+            ? { headers: { Authorization: `Bearer ${adminToken}` } }
+            : {}),
+        });
+        const payload = (await res.json()) as
+          | InvoicesResponse
+          | { error?: { message?: string } };
+
+        if (!res.ok) {
+          const msg =
+            "error" in payload
+              ? payload.error?.message
+              : "Failed to load invoices.";
+          if (active) setError(msg ?? "Failed to load invoices.");
+          return;
+        }
+
+        const okPayload = payload as InvoicesResponse;
+        if (active) setItems(okPayload.invoices);
+      } catch {
+        if (active) setError("Failed to load invoices.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    }
+
+    loadInvoices();
+    const timer = setInterval(loadInvoices, 10_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
     };
-
-    const { variant, icon, label } = config[status];
-    return (
-      <Badge variant={variant} className="inline-flex items-center">
-        {icon}
-        {label}
-      </Badge>
-    );
-  };
-
-  const filters = [
-    { value: "all", label: "All" },
-    { value: "pending", label: "Pending" },
-    { value: "exception", label: "Exceptions" },
-    { value: "approved", label: "Approved" },
-    { value: "rejected", label: "Rejected" },
-  ];
-
-  const stats = {
-    total: invoices.length,
-    pending: invoices.filter((i) => i.status === "pending").length,
-    exceptions: invoices.filter((i) => i.status === "exception").length,
-    approved: invoices.filter((i) => i.status === "approved").length,
-  };
+  }, [adminToken, query]);
 
   return (
-    <div className="bg-background min-h-screen">
-      {/* Header */}
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b backdrop-blur">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-lg">
-              <FileText className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-semibold">Invoice Automation</span>
-          </div>
-          <nav className="flex gap-6">
-            <Link href="/" className="text-muted-foreground hover:text-foreground text-sm">
-              Home
-            </Link>
-            <Link href="/upload" className="text-muted-foreground hover:text-foreground text-sm">
-              Upload
-            </Link>
-            <Link href="/jobs" className="text-muted-foreground hover:text-foreground text-sm">
-              Jobs
-            </Link>
-            <Link href="/exceptions" className="text-foreground text-sm font-medium">
-              Exceptions
-            </Link>
-          </nav>
+    <main className="mx-auto w-full max-w-6xl px-6 py-10">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <p className="mb-1 text-sm font-medium uppercase tracking-wide text-zinc-600">
+            Validation Queue
+          </p>
+          <h1 className="text-2xl font-semibold">Exceptions Queue</h1>
         </div>
-      </header>
+        <Link className="text-sm underline" href="/jobs">
+          View Jobs
+        </Link>
+      </div>
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="mx-auto max-w-7xl">
-          {/* Page Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="mb-2 text-3xl font-bold">Invoice Queue</h1>
-              <p className="text-muted-foreground">Review and process extracted invoices</p>
-            </div>
-            <Button onClick={fetchInvoices} variant="outline">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="mb-8 grid gap-4 md:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription>Total Invoices</CardDescription>
-                <CardTitle className="text-3xl">{stats.total}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription>Pending Review</CardDescription>
-                <CardTitle className="text-3xl text-yellow-600">{stats.pending}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription>Exceptions</CardDescription>
-                <CardTitle className="text-3xl text-orange-600">{stats.exceptions}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription>Approved</CardDescription>
-                <CardTitle className="text-3xl text-green-600">{stats.approved}</CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
-
-          {/* Filters */}
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Filter className="text-muted-foreground h-5 w-5" />
-                  <CardTitle>Filter by Status</CardTitle>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                {filters.map((f) => (
-                  <Button
-                    key={f.value}
-                    variant={filter === f.value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setFilter(f.value)}
-                  >
-                    {f.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Invoices Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoices</CardTitle>
-              <CardDescription>{invoices.length} invoice(s) found</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading && invoices.length === 0 ? (
-                <InvoiceSkeleton />
-              ) : invoices.length === 0 ? (
-                <div className="text-muted-foreground py-12 text-center">
-                  <FileText className="mx-auto mb-4 h-12 w-12" />
-                  <p className="mb-2 text-lg font-medium">No invoices found</p>
-                  <p className="text-sm">Upload some invoices to get started</p>
-                  <Link href="/upload">
-                    <Button className="mt-4">Upload Invoices</Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="border-b">
-                      <tr className="text-muted-foreground text-left text-sm">
-                        <th className="pb-3 font-medium">Status</th>
-                        <th className="pb-3 font-medium">Vendor</th>
-                        <th className="pb-3 font-medium">Invoice #</th>
-                        <th className="pb-3 font-medium">Total</th>
-                        <th className="pb-3 font-medium">Date</th>
-                        <th className="pb-3 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoices.map((invoice) => (
-                        <tr
-                          key={invoice.id}
-                          className="hover:bg-muted/50 border-b transition-colors"
-                        >
-                          <td className="py-4">{getStatusBadge(invoice.status)}</td>
-                          <td className="py-4">
-                            <div className="font-medium">
-                              {invoice.vendor || (
-                                <span className="text-muted-foreground italic">Processing...</span>
-                              )}
-                            </div>
-                            <div className="text-muted-foreground text-sm">{invoice.filename}</div>
-                          </td>
-                          <td className="py-4">{invoice.invoiceNumber || "—"}</td>
-                          <td className="py-4 font-medium">
-                            {invoice.total ? formatCurrency(invoice.total, invoice.currency) : "—"}
-                          </td>
-                          <td className="text-muted-foreground py-4 text-sm">
-                            {formatDate(invoice.createdAt)}
-                          </td>
-                          <td className="py-4">
-                            <Link href={`/invoices/${invoice.id}`}>
-                              <Button variant="ghost" size="sm">
-                                View Details
-                              </Button>
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Visible invoices
+          </p>
+          <p className="mt-2 text-2xl font-semibold">{summary.total}</p>
+        </div>
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Exceptions
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-amber-700">
+            {summary.exceptions}
+          </p>
+        </div>
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Flagged
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-red-700">
+            {summary.flagged}
+          </p>
+        </div>
+        <div className="rounded-xl border border-black/10 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">
+            Critical flags
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-red-800">
+            {summary.criticalFlags}
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-wide text-zinc-500">
+            Warnings
+          </p>
+          <p className="mt-1 text-lg font-semibold text-amber-700">
+            {summary.warningFlags}
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <label className="mr-2 flex items-center gap-2 text-sm text-zinc-600">
+          Admin token
+          <input
+            className="rounded-md border border-black/15 px-3 py-2 text-sm"
+            placeholder="Bearer token"
+            value={adminToken}
+            onChange={(event) => setAdminToken(event.target.value)}
+          />
+        </label>
+        {STATUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.label}
+            className={`rounded-md border px-3 py-1.5 text-sm ${
+              status === opt.value ? "bg-black text-white" : "bg-white"
+            }`}
+            onClick={() => setStatus(opt.value)}
+            type="button"
+          >
+            {opt.label}
+          </button>
+        ))}
+        <label className="ml-auto flex items-center gap-2 text-sm text-zinc-600">
+          Sort by
+          <select
+            className="rounded-md border border-black/15 bg-white px-3 py-2 text-sm text-zinc-900"
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as SortKey)}
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="critical">Most critical flags</option>
+            <option value="flags">Most flags</option>
+            <option value="vendor">Vendor A-Z</option>
+          </select>
+        </label>
+        <input
+          className="min-w-60 rounded-md border border-black/15 px-3 py-2 text-sm"
+          placeholder="Search vendor, invoice #, PO"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
+
+      {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
+
+      <section className="overflow-x-auto rounded-xl border border-black/10 bg-white">
+        <table className="min-w-full border-collapse text-sm">
+          <thead className="bg-black/[0.03]">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium">Invoice ID</th>
+              <th className="px-4 py-3 text-left font-medium">Vendor</th>
+              <th className="px-4 py-3 text-left font-medium">Invoice #</th>
+              <th className="px-4 py-3 text-left font-medium">Total</th>
+              <th className="px-4 py-3 text-left font-medium">Status</th>
+              <th className="px-4 py-3 text-left font-medium">Flags</th>
+              <th className="px-4 py-3 text-left font-medium">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td className="px-4 py-5" colSpan={7}>
+                  Loading invoices...
+                </td>
+              </tr>
+            ) : visibleItems.length === 0 ? (
+              <tr>
+                <td className="px-4 py-5" colSpan={7}>
+                  No invoices found.
+                </td>
+              </tr>
+            ) : (
+              visibleItems.map((invoice) => (
+                <tr
+                  className="border-t border-black/5"
+                  key={invoice.invoice_id}
+                >
+                  <td className="px-4 py-3 font-mono text-xs">
+                    <Link
+                      className="underline decoration-zinc-400 underline-offset-2"
+                      href={`/invoices/${invoice.invoice_id}`}
+                    >
+                      {invoice.invoice_id}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">{invoice.vendor_name ?? "-"}</td>
+                  <td className="px-4 py-3">
+                    <Link
+                      className="underline decoration-zinc-400 underline-offset-2"
+                      href={`/invoices/${invoice.invoice_id}`}
+                    >
+                      {invoice.invoice_number ?? "-"}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    {invoice.total !== null
+                      ? `${invoice.currency ?? "USD"} ${invoice.total.toFixed(2)}`
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-3 capitalize">{invoice.status}</td>
+                  <td className="px-4 py-3">
+                    {invoice.has_flags ? (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
+                          {invoice.validation_summary.total_flags} flag(s)
+                        </span>
+                        {invoice.validation_summary.critical_flags > 0 ? (
+                          <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                            {invoice.validation_summary.critical_flags} critical
+                          </span>
+                        ) : null}
+                        {invoice.validation_summary.warning_flags > 0 ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+                            {invoice.validation_summary.warning_flags} warning
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
+                        No
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {new Date(invoice.created_at).toLocaleString()}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+    </main>
   );
 }

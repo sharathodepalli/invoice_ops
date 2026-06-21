@@ -1,180 +1,151 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FileText, Clock, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
-import { formatFileSize, formatDate } from "@/lib/utils";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-interface Job {
-  id: string;
+type JobStatus = "queued" | "processing" | "extracted" | "validated" | "failed";
+
+type Job = {
+  job_id: string;
   filename: string;
-  fileSize: number;
-  status: "pending" | "processing" | "completed" | "failed";
-  uploadedAt: string;
-  processedAt?: string;
-  errorMessage?: string;
-}
+  status: JobStatus;
+  created_at: string;
+  updated_at: string;
+  error_message: string | null;
+};
+
+type JobsResponse = {
+  jobs: Job[];
+  next_cursor: string | null;
+};
+
+const STATUS_OPTIONS: Array<{ label: string; value: "" | JobStatus }> = [
+  { label: "All", value: "" },
+  { label: "Queued", value: "queued" },
+  { label: "Processing", value: "processing" },
+  { label: "Extracted", value: "extracted" },
+  { label: "Validated", value: "validated" },
+  { label: "Failed", value: "failed" },
+];
 
 export default function JobsPage() {
+  const [status, setStatus] = useState<"" | JobStatus>("");
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const fetchJobs = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/jobs");
-      if (response.ok) {
-        const data = await response.json();
-        setJobs(data.jobs || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch jobs:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    params.set("limit", "50");
+    return params.toString();
+  }, [status]);
 
   useEffect(() => {
-    fetchJobs();
-    // Poll for updates every 5 seconds
-    const interval = setInterval(fetchJobs, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    let active = true;
 
-  const getStatusBadge = (status: Job["status"]) => {
-    const variants: Record<Job["status"], any> = {
-      pending: "outline",
-      processing: "default",
-      completed: "success",
-      failed: "destructive",
-    };
-    return (
-      <Badge variant={variants[status]} className="capitalize">
-        {status}
-      </Badge>
-    );
-  };
+    async function loadJobs() {
+      try {
+        if (active) setError("");
+        const res = await fetch(`/api/jobs?${query}`, { cache: "no-store" });
+        const payload = (await res.json()) as
+          | JobsResponse
+          | { error?: { message?: string } };
 
-  const getStatusIcon = (status: Job["status"]) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "failed":
-        return <XCircle className="text-destructive h-5 w-5" />;
-      case "processing":
-        return <RefreshCw className="text-primary h-5 w-5 animate-spin" />;
-      default:
-        return <Clock className="text-muted-foreground h-5 w-5" />;
+        if (!res.ok) {
+          const msg =
+            "error" in payload
+              ? payload.error?.message
+              : "Failed to load jobs.";
+          if (active) setError(msg ?? "Failed to load jobs.");
+          return;
+        }
+
+        const okPayload = payload as JobsResponse;
+        if (active) setJobs(okPayload.jobs);
+      } catch {
+        if (active) setError("Failed to load jobs.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
     }
-  };
+
+    loadJobs();
+    const timer = setInterval(loadJobs, 10_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [query]);
 
   return (
-    <div className="bg-background min-h-screen">
-      {/* Header */}
-      <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b backdrop-blur">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-lg">
-              <FileText className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-semibold">Invoice Automation</span>
-          </div>
-          <nav className="flex gap-6">
-            <Link href="/" className="text-muted-foreground hover:text-foreground text-sm">
-              Home
-            </Link>
-            <Link href="/upload" className="text-muted-foreground hover:text-foreground text-sm">
-              Upload
-            </Link>
-            <Link href="/jobs" className="text-foreground text-sm font-medium">
-              Jobs
-            </Link>
-            <Link
-              href="/exceptions"
-              className="text-muted-foreground hover:text-foreground text-sm"
-            >
-              Exceptions
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-12">
-        <div className="mx-auto max-w-6xl">
-          {/* Page Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="mb-2 text-3xl font-bold">Processing Jobs</h1>
-              <p className="text-muted-foreground">Track the status of your uploaded invoices</p>
-            </div>
-            <Button onClick={fetchJobs} variant="outline">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
-
-          {/* Jobs List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>All Jobs</CardTitle>
-              <CardDescription>
-                {jobs.length} {jobs.length === 1 ? "job" : "jobs"} total
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading && jobs.length === 0 ? (
-                <div className="text-muted-foreground py-12 text-center">
-                  <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin" />
-                  <p>Loading jobs...</p>
-                </div>
-              ) : jobs.length === 0 ? (
-                <div className="text-muted-foreground py-12 text-center">
-                  <FileText className="mx-auto mb-4 h-12 w-12" />
-                  <p className="mb-2 text-lg font-medium">No jobs yet</p>
-                  <p className="text-sm">Upload some invoices to get started</p>
-                  <Link href="/upload">
-                    <Button className="mt-4">Upload Invoices</Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {jobs.map((job) => (
-                    <div
-                      key={job.id}
-                      className="flex items-center gap-4 rounded-lg border p-4 transition-shadow hover:shadow-md"
-                    >
-                      {getStatusIcon(job.status)}
-                      <div className="flex-1">
-                        <div className="mb-1 flex items-center justify-between">
-                          <p className="font-medium">{job.filename}</p>
-                          {getStatusBadge(job.status)}
-                        </div>
-                        <div className="text-muted-foreground flex gap-4 text-sm">
-                          <span>{formatFileSize(job.fileSize)}</span>
-                          <span>•</span>
-                          <span>Uploaded {formatDate(job.uploadedAt)}</span>
-                          {job.processedAt && (
-                            <>
-                              <span>•</span>
-                              <span>Processed {formatDate(job.processedAt)}</span>
-                            </>
-                          )}
-                        </div>
-                        {job.errorMessage && (
-                          <p className="text-destructive mt-2 text-sm">{job.errorMessage}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+    <main className="mx-auto w-full max-w-6xl px-6 py-10">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Processing Jobs</h1>
+        <Link className="text-sm underline" href="/upload">
+          Upload Files
+        </Link>
       </div>
-    </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        {STATUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.label}
+            className={`rounded-md border px-3 py-1.5 text-sm ${
+              status === opt.value ? "bg-black text-white" : "bg-white"
+            }`}
+            onClick={() => setStatus(opt.value)}
+            type="button"
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
+
+      <section className="overflow-x-auto rounded-xl border border-black/10 bg-white">
+        <table className="min-w-full border-collapse text-sm">
+          <thead className="bg-black/[0.03]">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium">Job ID</th>
+              <th className="px-4 py-3 text-left font-medium">Filename</th>
+              <th className="px-4 py-3 text-left font-medium">Status</th>
+              <th className="px-4 py-3 text-left font-medium">Updated</th>
+              <th className="px-4 py-3 text-left font-medium">Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td className="px-4 py-5" colSpan={5}>
+                  Loading jobs...
+                </td>
+              </tr>
+            ) : jobs.length === 0 ? (
+              <tr>
+                <td className="px-4 py-5" colSpan={5}>
+                  No jobs found.
+                </td>
+              </tr>
+            ) : (
+              jobs.map((job) => (
+                <tr className="border-t border-black/5" key={job.job_id}>
+                  <td className="px-4 py-3 font-mono text-xs">{job.job_id}</td>
+                  <td className="px-4 py-3">{job.filename}</td>
+                  <td className="px-4 py-3">{job.status}</td>
+                  <td className="px-4 py-3">
+                    {new Date(job.updated_at).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-red-700">
+                    {job.error_message ?? "-"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+    </main>
   );
 }

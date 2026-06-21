@@ -1,271 +1,96 @@
 # Demo Script & Recording Guide
 
-## Pre-Recording Setup (5 minutes)
+## Prep
 
-### 1. Clear old data
+1. Start the app with `npm run dev`.
+2. Open the app in dark mode at 125% zoom.
+3. Prepare one or two sample invoice PDFs to upload during the demo.
+4. Have the admin token ready for the exceptions, invoice detail, and export pages.
 
-```bash
-curl -X POST http://localhost:3000/api/seed \
-  -H "Content-Type: application/json" \
-  -d '{"action":"clear"}'
-```
+## Demo Flow
 
-### 2. Seed fresh demo data
+### Scene 1: Landing page
 
-- Go to http://localhost:3000/debug
-- Click "Seed Demo Data"
-- Wait for success message
+Narration:
 
-### 3. Prepare recording environment
+> "This is our invoice automation MVP. It turns PDF invoices into validated records that can be reviewed, approved, and exported."
 
-- Close unnecessary tabs/notifications
-- Set zoom to 125% (readable on video)
-- Use dark mode (looks professional)
-- Test microphone audio levels
-- Use screen recording tool (OBS, ScreenFlow, etc.)
+Show:
 
----
+- Home page hero and key workflow cards.
+- Navigation to upload, jobs, exceptions, and export.
 
-## Demo Script (2:45 Total)
+### Scene 2: Upload and processing
 
-### Scene 1: Landing Page (0:15)
+Narration:
 
-**Narration:**
+> "We upload a PDF, create a processing job, and extract the invoice data automatically."
 
-> "Hi! Today I'm showing you our AI-powered invoice automation platform for The Shades. This solution eliminates manual data entry by automatically extracting vendor information, invoice numbers, amounts, and PO numbers from PDFs."
+Show:
 
-**Actions:**
+1. `/upload`
+2. Drag and drop or select a PDF.
+3. `/jobs`
+4. Job status moving through the pipeline.
 
-1. Load http://localhost:3000
-2. Scroll to show:
-   - Hero section
-   - Stats cards (if filled in)
-   - Feature cards
-3. Show responsive design by adjusting window
+### Scene 3: Exceptions queue
 
-**End:** 15 seconds
+Narration:
 
----
+> "Any invoices that need attention land in the exceptions queue with clear validation counts and filters."
 
-### Scene 2: Upload Flow (0:30)
+Show:
 
-**Narration:**
+1. `/exceptions`
+2. Enter the admin token if prompted.
+3. Filter by exception status.
+4. Sort by critical flags or vendor.
 
-> "Let me show you how it works. First, we upload invoices. You can either drag and drop or click to select files."
+### Scene 4: Invoice detail and review
 
-**Actions:**
+Narration:
 
-1. Click "Start Processing" or go to /upload
-2. Show drag-drop zone
-3. Click "Browse Files"
-4. Show file picker (don't select, just show)
-5. Say "Once uploaded, processing begins automatically"
-6. Go back to home, show upload card
-7. Navigate to /jobs page
-8. Show:
-   - Job queue with status
-   - Pending → Processing
-   - Real-time updates
+> "The detail screen shows the extracted fields, validation flags, and the full audit trail. We can correct fields and approve from here."
 
-**Lines on screen:**
+Show:
 
-- "Drag files here or click to browse"
-- "Uploaded 12 invoices"
-- "Processing..." (animated)
+1. Open an exception invoice.
+2. Enter the admin token if prompted.
+3. Edit a field and save.
+4. Show the audit entry.
+5. Approve or reject the invoice.
 
-**End:** 30 seconds | Cumulative: 45 seconds
+### Scene 5: Export
 
----
+Narration:
 
-### Scene 3: Processing & Exceptions (0:35)
+> "Approved invoices can be exported to CSV, and every export is tracked in history."
 
-**Narration:**
+Show:
 
-> "Our system automatically extracts data from PDFs using OCR and AI. It then validates the information. Any issues get flagged for review."
+1. `/exports`
+2. Enter the admin token.
+3. Select approved invoices.
+4. Download CSV.
+5. Show export history updating.
 
-**Actions:**
+### Scene 6: Closing
 
-1. Go to /exceptions page
-2. Show:
-   - Loading skeletons (briefly)
-   - Stats cards loading
-   - Stats showing: Total (12), Pending (X), Exceptions (X), Approved (X)
-3. Explain different colors:
-   - Gray = Pending
-   - Orange = Exception (needs review)
-   - Green = Approved
-   - Red = Rejected
-4. Point to a few rows showing different statuses
-5. Show filter buttons: "All, Pending, Exception, Approved, Rejected"
-6. Click Exception filter to show just exceptions
+Narration:
 
-**Key Quote:**
+> "That gives us a complete AP workflow with validation, auditability, and export readiness."
 
-> "Our validation engine catches these issues automatically, so nothing bad makes it to your ERP system."
+Show:
 
-**End:** 35 seconds | Cumulative: 1:20
+- Return to the home page.
+- End on the workflow summary.
 
----
+## Recording Notes
 
-### Scene 4: Invoice Detail & Review (0:45)
-
-**Narration:**
-
-> "Let me click on an exception invoice to see the details. Here we have the PDF on the left and the extracted data on the right."
-
-**Actions:**
-
-1. Click on an "Exception" status invoice
-2. Wait for detail page to load (show skeleton briefly)
-3. Show layout:
-   - Left: PDF viewer
-   - Right: Extracted fields
-4. Point out:
-   - **Confidence badges:** High (green), Medium (yellow), Low (red)
-   - Each field shows confidence level
-5. Scroll down to show validation issues box:
-   - Orange alert
-   - Issue message: "Total doesn't match subtotal + tax"
-   - Severity indicator
-6. Show Edit button
-7. Click Edit
-8. Highlight one field (e.g., total)
-9. Show input becomes editable
-10. Type a different value
-11. Click Save
-12. Show success (field updates)
-
-**Key Quote:**
-
-> "You can see exactly why each invoice was flagged and fix any issues right here."
-
-**End:** 45 seconds | Cumulative: 2:05
-
----
-
-### Scene 5: Approval & Export (0:40)
-
-**Narration:**
-
-> "Once the data looks good, we approve the invoice. This is automatically logged for audit purposes."
-
-**Actions:**
-
-1. Click "Approve" button (green)
-2. Confirm if prompted
-3. Shows redirect to exceptions page
-4. Navigate to /export page
-5. Show:
-   - List of approved invoices with checkboxes
-   - Export history sidebar (empty or with records)
-   - Stats on approved count
-6. Narrate: "Here we can see all approved invoices"
-7. Use "Select All" button
-8. Show count badge: "Export 3 Selected" (or however many)
-9. Click "Export Selected"
-10. Show:
-    - Button shows "Exporting..."
-    - File downloads
-    - Page refreshes
-    - Export history updates
-
-**Key Quote:**
-
-> "The system generates a perfectly formatted CSV that's ready to import directly into your ERP system. Every action is tracked in the audit log."
-
-**End:** 40 seconds | Cumulative: 2:45
-
----
-
-### Scene 6: Closing (0:15)
-
-**Actions:**
-
-1. Go back to home page
-2. Do final scroll of features
-
-**Narration:**
-
-> "That's the complete workflow - from upload to approval to export. Our platform handles complex validation, maintains full audit trails, and ensures data accuracy every step of the way. Ready to transform your AP process?"
-
-**Visual:**
-
-- Show logo/company name
-- Maybe include tech stack subtitle
-
-**End:** 15 seconds | Cumulative: 3:00
-
----
-
-## Recording Tips
-
-### Audio Quality
-
-- Speak clearly and slowly (pause between thoughts)
-- Use a microphone, not laptop audio
-- Test audio levels before recording
-- Avoid background noise
-- Add subtle background music if needed
-
-### Visual Quality
-
-- Zoom: 125% (text readable)
-- Theme: Dark mode (looks more professional)
-- Cursor: Make visible
-- Pointer: Use OS pointer highlight tool
-- Timing: Let screens fully load before narrating
-
-### Pacing
-
-- Don't rush - give viewers time to absorb info
-- Pause 1-2 seconds on each screen change
-- Use cursor to point out important elements
-- Show transitions (loading states, animations)
-
-### Voiceover
-
-- Record narration separately if possible
-- Use clear project/company names
-- Emphasize key features:
-  - "Automatic AI extraction"
-  - "Intelligent validation"
-  - "Complete audit trail"
-  - "One-click export"
-- End with call-to-action
-
----
-
-## Post-Recording
-
-### Editing (if using external editor)
-
-1. Trim to 2:45-3:00 max
-2. Add title slide (3 seconds)
-3. Add tech stack slide (3 seconds)
-4. Add closing CTA slide (3 seconds)
-5. Total: ~3:15 with extras
-6. Add subtitle captions for key features
-7. Adjust audio levels to -6dB average
-
-### Export Settings
-
-- Format: MP4
-- Resolution: 1920x1080 (1080p)
-- Bitrate: 5-8 Mbps
-- Frame rate: 30 fps
-- Audio: 128 kbps AAC
-
-### Upload & Share
-
-- YouTube (unlisted or public)
-- Vimeo
-- Product Hunt
-- Company website
-- Email to prospects
-
----
-
-## Backup Script (If You Mess Up)
+- Keep each screen up long enough to read the labels.
+- Pause briefly when showing the validation and audit areas.
+- If the app asks for a token, type it once and keep the demo moving.
+- Keep the final video under 3 minutes.
 
 If recording doesn't go perfectly:
 

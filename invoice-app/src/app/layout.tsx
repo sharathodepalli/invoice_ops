@@ -13,16 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Invoice Automation Platform | The Shades",
-  description:
-    "AI-powered invoice processing with 80%+ extraction accuracy. Automate your AP workflow with smart validation, exception handling, and ERP-ready exports.",
-  keywords: [
-    "invoice automation",
-    "AP automation",
-    "OCR invoice processing",
-    "accounts payable",
-    "invoice extraction",
-  ],
+  title: "Invoice AP Automation",
+  description: "Upload and job lifecycle for invoice processing",
 };
 
 export default function RootLayout({
@@ -31,8 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

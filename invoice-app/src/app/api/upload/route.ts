@@ -1,77 +1,130 @@
-import { NextRequest, NextResponse } from "next/server";
-import { storeFile, validatePdfFile } from "@/lib/storage";
-import { createJob, createInvoice } from "@/lib/db";
-import { processInvoiceJob } from "@/lib/processor";
+import { NextResponse } from "next/server";
+import {
+  buildIdempotencyKey,
+  buildUploadId,
+  createJobsForUpload,
+  getJobById,
+  persistUploadFile,
+} from "@/lib/jobs-store";
+import { extractJob } from "@/lib/extraction/pipeline";
+import { isLikelyPdf, UPLOAD_LIMITS } from "@/lib/upload-config";
+import { buildRequestLogContext, logRequestEvent, resolveRequestId } from "@/lib/request-logger";
 
-export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+export const runtime = "nodejs";
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    // Validate file
-    const validation = validatePdfFile(file);
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
-
-    // Store file
-    const fileResult = await storeFile(file);
-
-    // Create job record
-    const job = await createJob({
-      filename: file.name,
-      fileSize: file.size,
-      fileUrl: fileResult.url,
-      // userId: "demo-user", // Removed - will be null until auth is added
-    });
-
-    // Create invoice record
-    const invoiceId = await createInvoice({
-      jobId: job.id,
-      pdfUrl: fileResult.url,
-    });
-
-    // Trigger background processing (async, don't wait)
-    processInvoiceJob(job.id, invoiceId, fileResult.path).catch((error) => {
-      console.error("Background processing error:", error);
-    });
-
-    return NextResponse.json({
-      success: true,
-      job: {
-        id: job.id,
-        filename: job.filename,
-        status: job.status,
+function errorResponse(code: string, message: string, status: number, requestId: string) {
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        message,
+        request_id: requestId,
       },
-      invoiceId,
-    });
-  } catch (error) {
-    console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Upload failed" },
-      { status: 500 }
-    );
-  }
+    },
+    { status },
+  );
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(req: Request) {
+  const requestId = resolveRequestId(req);
+  const logContext = buildRequestLogContext(req, "/api/upload", null, requestId);
   try {
-    // This endpoint can be used to get upload status
-    const { searchParams } = new URL(request.url);
-    const jobId = searchParams.get("jobId");
+    const form = await req.formData();
+    const files = form.getAll("files[]");
 
-    if (!jobId) {
-      return NextResponse.json({ error: "Job ID required" }, { status: 400 });
+    if (!files.length) {
+      logRequestEvent("warn", logContext, "upload_rejected", { reason: "no_files" });
+      return errorResponse("invalid_file_type", "No files provided.", 400, requestId);
     }
 
-    // TODO: Implement job status check
-    return NextResponse.json({ status: "pending" });
-  } catch (error) {
-    console.error("Status check error:", error);
-    return NextResponse.json({ error: "Failed to check status" }, { status: 500 });
+    if (files.length > UPLOAD_LIMITS.maxBatchFiles) {
+      logRequestEvent("warn", logContext, "upload_rejected", { reason: "batch_limit_exceeded", file_count: files.length });
+      return errorResponse(
+        "batch_limit_exceeded",
+        `Batch limit is ${UPLOAD_LIMITS.maxBatchFiles} files.`,
+        400,
+        requestId,
+      );
+    }
+
+    const parsedFiles: Array<{ file: File; name: string; size: number }> = [];
+
+    for (const entry of files) {
+      if (!(entry instanceof File)) {
+        logRequestEvent("warn", logContext, "upload_rejected", { reason: "invalid_payload" });
+        return errorResponse("invalid_file_type", "Invalid file payload.", 400, requestId);
+      }
+
+      if (!isLikelyPdf(entry.name, entry.type)) {
+        logRequestEvent("warn", logContext, "upload_rejected", { reason: "invalid_file_type", file_name: entry.name });
+        return errorResponse(
+          "invalid_file_type",
+          `Only PDF files are allowed. Invalid file: ${entry.name}`,
+          400,
+          requestId,
+        );
+      }
+
+      if (entry.size > UPLOAD_LIMITS.maxFileSizeBytes) {
+        logRequestEvent("warn", logContext, "upload_rejected", { reason: "file_too_large", file_name: entry.name, file_size_bytes: entry.size });
+        return errorResponse(
+          "file_too_large",
+          `File ${entry.name} exceeds ${UPLOAD_LIMITS.maxFileSizeBytes / (1024 * 1024)}MB limit.`,
+          400,
+          requestId,
+        );
+      }
+
+      parsedFiles.push({ file: entry, name: entry.name, size: entry.size });
+    }
+
+    const uploadId = buildUploadId();
+    const forCreate: Array<{
+      fileName: string;
+      fileSizeBytes: number;
+      fileUrl: string;
+      idempotencyKey: string;
+    }> = [];
+
+    for (const item of parsedFiles) {
+      const bytes = new Uint8Array(await item.file.arrayBuffer());
+      const fileUrl = await persistUploadFile(uploadId, item.name, bytes);
+      forCreate.push({
+        fileName: item.name,
+        fileSizeBytes: item.size,
+        fileUrl,
+        idempotencyKey: buildIdempotencyKey(uploadId, item.name),
+      });
+    }
+
+    const createdJobs = await createJobsForUpload({
+      uploadId,
+      files: forCreate,
+    });
+
+    const jobs = [] as typeof createdJobs;
+    for (const job of createdJobs) {
+      try {
+        const extracted = await extractJob(job.job_id);
+        jobs.push(extracted.job);
+      } catch {
+        jobs.push((await getJobById(job.job_id)) ?? job);
+      }
+    }
+
+    return NextResponse.json(
+      {
+        upload_id: uploadId,
+        jobs: jobs.map((job) => ({
+          job_id: job.job_id,
+          filename: job.filename,
+          status: job.status,
+        })),
+      },
+      { status: 201 },
+    );
+  } catch {
+    logRequestEvent("error", logContext, "upload_failed");
+    return errorResponse("upload_failed", "Failed to process upload request.", 500, requestId);
   }
 }

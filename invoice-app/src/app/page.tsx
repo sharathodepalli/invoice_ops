@@ -1,222 +1,190 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileSearch, CheckCircle2, Download, Zap, Shield, BarChart3 } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="from-background via-secondary/20 to-background min-h-screen bg-gradient-to-b">
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 md:py-32">
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="bg-secondary mb-8 inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-medium">
-            <Zap className="text-primary mr-2 h-4 w-4" />
-            AI-Powered Invoice Automation
-          </div>
-          <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            Transform Your
-            <span className="from-primary block bg-gradient-to-r to-blue-600 bg-clip-text text-transparent">
-              Invoice Processing
-            </span>
-          </h1>
-          <p className="text-muted-foreground mx-auto mb-10 max-w-2xl text-lg sm:text-xl">
-            Automate extraction, validation, and approval of invoices with industry-leading
-            accuracy. Save time, reduce errors, and streamline your AP workflow.
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <Link href="/upload">
-              <Button size="lg" className="w-full sm:w-auto">
-                <Upload className="mr-2 h-5 w-5" />
-                Start Processing
-              </Button>
-            </Link>
-            <Link href="/exceptions">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                View Exceptions Queue
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(244,140,62,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.12),_transparent_22%),linear-gradient(180deg,_#fffaf4_0%,_#fff_42%,_#f8fafc_100%)] text-zinc-950">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12 lg:py-16">
+        <section className="grid items-center gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <p className="mb-4 inline-flex items-center rounded-full border border-orange-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-orange-800 shadow-sm backdrop-blur">
+              AP automation for teams that hate invoice chaos
+            </p>
+            <h1 className="max-w-3xl text-5xl font-semibold leading-tight tracking-tight text-zinc-950 md:text-6xl">
+              Turn invoice review from a backlog into a 5-minute approval flow.
+            </h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-700 md:text-xl">
+              Upload PDFs, catch exceptions automatically, approve with an audit
+              trail, and export clean CSVs without the spreadsheet scramble.
+            </p>
 
-      {/* Stats Section */}
-      <section className="bg-card border-y">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="text-center">
-              <div className="text-primary mb-2 text-4xl font-bold">80%+</div>
-              <div className="text-muted-foreground text-sm">Extraction Accuracy</div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                className="rounded-full bg-zinc-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-zinc-950/15 transition hover:-translate-y-0.5 hover:bg-zinc-800"
+                href="/upload"
+              >
+                Start an invoice run
+              </Link>
+              <Link
+                className="rounded-full border border-emerald-300 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-900 transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-100"
+                href="/pricing"
+              >
+                Book a pilot
+              </Link>
+              <Link
+                className="rounded-full border border-zinc-300 bg-white/80 px-6 py-3 text-sm font-semibold text-zinc-900 backdrop-blur transition hover:-translate-y-0.5 hover:border-zinc-400"
+                href="/exceptions"
+              >
+                See the review queue
+              </Link>
+              <Link
+                className="rounded-full border border-zinc-300 bg-white/80 px-6 py-3 text-sm font-semibold text-zinc-900 backdrop-blur transition hover:-translate-y-0.5 hover:border-zinc-400"
+                href="/exports"
+              >
+                Show export flow
+              </Link>
             </div>
-            <div className="text-center">
-              <div className="text-primary mb-2 text-4xl font-bold">10x</div>
-              <div className="text-muted-foreground text-sm">Faster Processing</div>
-            </div>
-            <div className="text-center">
-              <div className="text-primary mb-2 text-4xl font-bold">100%</div>
-              <div className="text-muted-foreground text-sm">Audit Trail</div>
+
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur">
+                <p className="text-sm font-medium text-zinc-500">
+                  Faster review
+                </p>
+                <p className="mt-2 text-3xl font-semibold">Minutes</p>
+                <p className="mt-1 text-sm text-zinc-600">
+                  not spreadsheet churn
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur">
+                <p className="text-sm font-medium text-zinc-500">Risk caught</p>
+                <p className="mt-2 text-3xl font-semibold">Before ERP</p>
+                <p className="mt-1 text-sm text-zinc-600">
+                  validation blocks bad data
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur">
+                <p className="text-sm font-medium text-zinc-500">Audit ready</p>
+                <p className="mt-2 text-3xl font-semibold">Always</p>
+                <p className="mt-1 text-sm text-zinc-600">
+                  who changed what, when
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* How It Works */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="mb-12 text-center">
-          <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            Simple, Powerful Workflow
-          </h2>
-          <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
-            From upload to export in minutes, not hours
-          </p>
-        </div>
-        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-2 transition-shadow hover:shadow-lg">
-            <CardHeader>
-              <div className="bg-primary/10 mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg">
-                <Upload className="text-primary h-6 w-6" />
+          <div className="rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-2xl shadow-zinc-950/10 backdrop-blur">
+            <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-zinc-500">
+                  What a buyer sees
+                </p>
+                <p className="mt-1 text-xl font-semibold text-zinc-950">
+                  A clean path from invoice to approved export
+                </p>
               </div>
-              <CardTitle>1. Upload</CardTitle>
-              <CardDescription>
-                Drag & drop single or batch PDF invoices. Instant upload with progress tracking.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="border-2 transition-shadow hover:shadow-lg">
-            <CardHeader>
-              <div className="bg-primary/10 mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg">
-                <FileSearch className="text-primary h-6 w-6" />
-              </div>
-              <CardTitle>2. Extract</CardTitle>
-              <CardDescription>
-                AI-powered OCR extracts vendor, amounts, dates, and PO numbers with confidence
-                scores.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="border-2 transition-shadow hover:shadow-lg">
-            <CardHeader>
-              <div className="bg-primary/10 mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg">
-                <CheckCircle2 className="text-primary h-6 w-6" />
-              </div>
-              <CardTitle>3. Validate</CardTitle>
-              <CardDescription>
-                Smart validation catches errors, duplicates, and exceptions before they reach your
-                ERP.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <Card className="border-2 transition-shadow hover:shadow-lg">
-            <CardHeader>
-              <div className="bg-primary/10 mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg">
-                <Download className="text-primary h-6 w-6" />
-              </div>
-              <CardTitle>4. Export</CardTitle>
-              <CardDescription>
-                One-click CSV export ready for your ERP system. Full audit trail included.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </section>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Live demo ready
+              </span>
+            </div>
 
-      {/* Features Grid */}
-      <section className="bg-secondary/20 py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              Enterprise-Grade Features
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
-              Everything you need to automate your AP workflow
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl bg-zinc-950 p-4 text-white shadow-lg">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">
+                  Buyer pain
+                </p>
+                <p className="mt-2 text-lg font-medium">
+                  &ldquo;We waste time fixing invoice errors after they already
+                  hit accounting.&rdquo;
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 p-4">
+                  <p className="text-sm font-medium text-zinc-500">
+                    Review queue
+                  </p>
+                  <p className="mt-2 text-base font-semibold">
+                    Exceptions surfaced with reasons
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 p-4">
+                  <p className="text-sm font-medium text-zinc-500">
+                    Approval flow
+                  </p>
+                  <p className="mt-2 text-base font-semibold">
+                    Edit, approve, reject, audit
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 p-4">
+                  <p className="text-sm font-medium text-zinc-500">Export</p>
+                  <p className="mt-2 text-base font-semibold">
+                    Clean CSV with history
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 p-4">
+                  <p className="text-sm font-medium text-zinc-500">
+                    Ops control
+                  </p>
+                  <p className="mt-2 text-base font-semibold">
+                    Admin and system access separated
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              For founders
+            </p>
+            <p className="mt-3 text-base leading-7 text-zinc-700">
+              Show a buyer one workflow and one number: fewer manual touches per
+              invoice.
             </p>
           </div>
-          <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <Shield className="text-primary mb-2 h-8 w-8" />
-                <CardTitle className="text-lg">Smart Validation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">
-                  Automatic duplicate detection, total verification, and missing field alerts.
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <BarChart3 className="text-primary mb-2 h-8 w-8" />
-                <CardTitle className="text-lg">Confidence Scoring</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">
-                  Know which fields need review with High/Med/Low confidence indicators.
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CheckCircle2 className="text-primary mb-2 h-8 w-8" />
-                <CardTitle className="text-lg">Exception Queue</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">
-                  Review, edit, and approve exceptions with a streamlined workflow.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20">
-        <Card className="border-primary/20 from-primary/5 mx-auto max-w-3xl border-2 bg-gradient-to-br to-transparent">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl">Ready to Get Started?</CardTitle>
-            <CardDescription className="text-lg">
-              Join forward-thinking teams who have automated their invoice processing
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center gap-4">
-            <Link href="/upload">
-              <Button size="lg">
-                <Upload className="mr-2 h-5 w-5" />
-                Upload Your First Invoice
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Footer */}
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <p className="text-muted-foreground text-sm">
-              © 2026 The Shades Invoice Automation. Built with Next.js, TypeScript, and AI
-              intelligence.
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              For finance teams
             </p>
-            <div className="flex gap-4">
-              <Link href="/upload">
-                <Button variant="ghost" size="sm">
-                  Upload
-                </Button>
-              </Link>
-              <Link href="/exceptions">
-                <Button variant="ghost" size="sm">
-                  Exceptions
-                </Button>
-              </Link>
-              <Link href="/export">
-                <Button variant="ghost" size="sm">
-                  Export
-                </Button>
-              </Link>
-            </div>
+            <p className="mt-3 text-base leading-7 text-zinc-700">
+              Make exceptions obvious, approvals traceable, and exports
+              repeatable.
+            </p>
           </div>
-        </div>
-      </footer>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              For buyers
+            </p>
+            <p className="mt-3 text-base leading-7 text-zinc-700">
+              Reduce rework, speed up close, and keep every approval
+              accountable.
+            </p>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                Selling the first pilot
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                Start with a paid 2-week AP pilot.
+              </h2>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-zinc-700">
+                Load 10 to 20 invoices, prove faster review and cleaner export,
+                and convert the pilot into a recurring AP workflow subscription.
+              </p>
+            </div>
+            <Link
+              className="inline-flex rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800"
+              href="/pricing"
+            >
+              See pilot pricing
+            </Link>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
